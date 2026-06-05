@@ -1,0 +1,8 @@
+# 运行时数据（含 PII：CV 文本、画像、职位表、报告）
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/

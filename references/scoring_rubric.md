@@ -1,0 +1,73 @@
+# 打分规则（scoring_rubric）
+
+> 打分 subagent 读本文件，对职位做 5 维匹配打分，产出 `MatchScore`。
+> 双向匹配：CV 满足 JD 要求的程度（打分）+ 职位满足候选人硬约束（过滤）。
+
+## 两阶段
+
+- **粗排**（所有候选）：只有 snippet，对 5 维做快速估分排序，`scored_from = "snippet"`。
+- **精排**（Top-(N+5)）：抓 JD 全文 → 先抽 JD 结构（见下）→ 再精确 5 维打分，`scored_from = "jd"`。
+
+## JD 结构抽取（精排时，从 JD 全文）
+```json
+{
+  "must_have": ["硬性要求…"],          // 职位必备要求
+  "good_to_have": ["加分项…"],
+  "required_skills": ["技能…"],
+  "work_mode": "remote|onsite|hybrid|",
+  "years_required": 5,
+  "job_type": "fulltime|contract|"
+}
+```
+
+## 5 维打分（每维 0–100）
+
+| 维度 | 含义 | 权重 |
+|------|------|:--:|
+| `title_score` | 职位 title 与 CV `preferred_roles` 的方向匹配 | 25 |
+| `skills_score` | CV `skills` ∩ JD `required_skills` + `must_have` 技能 的覆盖度 | 25 |
+| `must_have_score` | CV 满足 JD `must_have` 的**比例**（部分满足给部分分） | 25 |
+| `seniority_score` | 职位资历 vs CV `eligible_levels`(满分) / `stretch_levels`(打折) / `blocked_levels`(很低) | 15 |
+| `location_score` | 职位地点 ∈ CV 地点 或 remote → 满分；否则低 | 10 |
+
+```
+overall_score = 0.25*title + 0.25*skills + 0.25*must_have + 0.15*seniority + 0.10*location
+```
+技能匹配用语义等价（Python≈Python3，K8s≈Kubernetes）。
+
+## 候选人硬约束过滤（来自 candidate_profile）
+打分前先过滤——**命中即直接 `recommendation = "skip"`、overall 置低**：
+- `hard_filters` 不满足（如薪资低于下限、要求 remote 但职位 onsite、雇佣类型不符）。
+- 命中 `deal_breakers`（如"纯外包"、"需 996"、"实习"）。
+
+## recommendation 五档（按 overall_score）
+| 档 | 阈值 |
+|----|------|
+| `strong_apply` | ≥ 85 |
+| `apply` | ≥ 70 |
+| `stretch_apply` | ≥ 55 |
+| `low_priority` | ≥ 40 |
+| `skip` | < 40 或 命中硬约束/deal_breaker |
+
+seniority 落在 `stretch_levels` 的，倾向 `stretch_apply`。
+
+## 输出 MatchScore
+```json
+{
+  "overall_score": 88,
+  "title_score": 90, "seniority_score": 80, "skills_score": 92,
+  "location_score": 100, "must_have_score": 85,
+  "recommendation": "strong_apply",
+  "strengths": ["相对该 JD 的 2-4 条优势"],
+  "weaknesses": ["相对该 JD 的 1-3 条差距"],
+  "matched_keywords": ["命中的具体技能/关键词，≤6"],
+  "missing_must_haves": ["未满足的 JD 必备项"],
+  "explanation": "一句话结论"
+}
+```
+
+## 批量与并行
+- 一个 subagent 一次评一片职位（如 5-8 个），输出每个的 MatchScore。
+- 多片**并行**（受 `max_parallel_subagents` 约束）。
+- JD 全文留在 subagent 内，只回传结构化 `jd_profile` + `MatchScore`，不回传全文。
+- JD 抓取失败 → 走容错阶梯；彻底失败用 snippet 粗分并标 `scored_from = "snippet"`。

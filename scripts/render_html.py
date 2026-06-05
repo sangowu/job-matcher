@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""模块6：渲染静态 HTML 报告。
+
+读 jobs_table.json，按当前 cv_hash:cp_hash 取 match_score 展平职位，
+注入 assets/template.html（占位符替换，零第三方依赖），输出自包含 HTML 并自动打开。
+
+用法:
+  python render_html.py --cv-hash H --cp-hash H [--meta-file F] [--no-open]
+
+meta-file(可选 JSON): {profile_summary, new_count, cached_count, lang}
+输出: {"ok": true, "report_path": "...", "job_count": N}
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+SKILL_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = SKILL_ROOT / "data"
+TABLE_PATH = DATA_DIR / "jobs_table.json"
+TEMPLATE_PATH = SKILL_ROOT / "assets" / "template.html"
+REPORTS_DIR = DATA_DIR / "reports"
+
+
+def flatten(job: dict, mk: str) -> dict:
+    ms = (job.get("match_scores") or {}).get(mk) or {}
+    return {
+        "title": job.get("title", ""),
+        "company": job.get("company", ""),
+        "location": job.get("location", ""),
+        "url": job.get("url", ""),
+        "salary": job.get("salary", ""),
+        "date_posted": job.get("date_posted", ""),
+        "first_seen": job.get("first_seen", ""),
+        "status": job.get("status", "existing"),
+        "sources": [rs.get("source", "") for rs in job.get("raw_sources", [])],
+        "source_urls": [{"source": rs.get("source", ""), "url": rs.get("url", "")}
+                        for rs in job.get("raw_sources", [])],
+        "possibly_closed": job.get("possibly_closed", False),
+        "verified": job.get("verified"),
+        "scored_from": job.get("scored_from"),
+        "score": ms.get("overall_score"),
+        "recommendation": ms.get("recommendation"),
+        "strengths": ms.get("strengths", []),
+        "weaknesses": ms.get("weaknesses", []),
+        "matched_keywords": ms.get("matched_keywords", []),
+        "title_score": ms.get("title_score"),
+        "seniority_score": ms.get("seniority_score"),
+        "skills_score": ms.get("skills_score"),
+        "location_score": ms.get("location_score"),
+        "must_have_score": ms.get("must_have_score"),
+        "jd": job.get("jd_profile") or {},
+    }
+
+
+def open_file(path: Path) -> None:
+    try:
+        if sys.platform == "win32":
+            os.startfile(str(path))  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(path)], check=False)
+        else:
+            subprocess.run(["xdg-open", str(path)], check=False)
+    except Exception:
+        pass
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--cv-hash", required=True)
+    ap.add_argument("--cp-hash", required=True)
+    ap.add_argument("--meta-file", default="")
+    ap.add_argument("--no-open", action="store_true")
+    args = ap.parse_args()
+
+    if not TABLE_PATH.exists():
+        print(json.dumps({"ok": False, "error": "jobs_table.json 不存在，请先运行检索"}))
+        sys.exit(1)
+    table = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
+
+    meta = {}
+    if args.meta_file and Path(args.meta_file).exists():
+        try:
+            meta = json.loads(Path(args.meta_file).read_text(encoding="utf-8"))
+        except Exception:
+            meta = {}
+
+    lang = meta.get("lang") or "en"
+    if lang not in ("zh", "en"):
+        lang = "en"
+
+    mk = f"{args.cv_hash}:{args.cp_hash}"
+    jobs = [flatten(j, mk) for j in table.get("jobs", [])]
+
+    template = TEMPLATE_PATH.read_text(encoding="utf-8")
+    html = (template
+            .replace("__JOBS_JSON__", json.dumps(jobs, ensure_ascii=False))
+            .replace("__META_JSON__", json.dumps(meta, ensure_ascii=False))
+            .replace("__LANG__", lang))
+
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out = REPORTS_DIR / f"report_{ts}.html"
+    out.write_text(html, encoding="utf-8")
+
+    if not args.no_open:
+        open_file(out)
+
+    print(json.dumps({"ok": True, "report_path": str(out), "job_count": len(jobs)}))
+
+
+if __name__ == "__main__":
+    main()

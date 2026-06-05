@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="__LANG__" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Job Matcher Report</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { darkMode: 'class' }</script>
+<style>
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+  .dark ::-webkit-scrollbar-thumb { background: #475569; }
+  .card-enter { animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+  #detail-overlay { backdrop-filter: blur(2px); }
+</style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans transition-colors">
+
+<!-- 顶部 -->
+<header class="sticky top-0 z-20 bg-white/90 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm">
+  <div class="max-w-5xl mx-auto px-4 py-3">
+    <div class="flex items-center gap-3 flex-wrap">
+      <span class="text-lg font-bold text-blue-600 dark:text-blue-400">Job Matcher</span>
+      <span id="summary" class="text-xs text-gray-500 dark:text-gray-400"></span>
+      <div class="ml-auto flex items-center gap-2">
+        <button id="lang-btn" class="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"></button>
+        <button id="dark-btn" class="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"></button>
+      </div>
+    </div>
+    <p id="profile-line" class="text-xs text-gray-400 dark:text-gray-500 mt-1"></p>
+
+    <!-- 控件 -->
+    <div class="flex items-center gap-2 mt-3 flex-wrap">
+      <div class="relative flex-1 min-w-[160px]">
+        <input id="search" type="text"
+          class="w-full pl-3 pr-2 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+      </div>
+      <select id="sort" class="text-sm px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"></select>
+      <div id="date-filter" class="flex gap-1"></div>
+      <select id="score-filter" class="text-sm px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"></select>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 py-5 space-y-6">
+  <section id="new-wrap" class="hidden">
+    <h2 id="new-title" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-2"></h2>
+    <div id="new-list" class="space-y-2"></div>
+  </section>
+  <section id="hist-wrap">
+    <h2 id="hist-title" class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-2"></h2>
+    <div id="hist-list" class="space-y-2"></div>
+    <button id="hist-more" class="hidden mt-3 w-full py-2 text-xs text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"></button>
+  </section>
+  <p id="empty" class="hidden text-center text-gray-400 py-16 text-sm"></p>
+</main>
+
+<!-- 详情浮层 -->
+<div id="detail-overlay" class="hidden fixed inset-0 z-30 bg-black/40 flex items-start justify-center overflow-y-auto py-8 px-4">
+  <div id="detail-card" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-6 card-enter"></div>
+</div>
+
+<script id="data">
+const JOBS = __JOBS_JSON__;
+const META = __META_JSON__;
+let LANG = "__LANG__";
+</script>
+
+<script>
+// ── i18n ───────────────────────────────────────────────────────────────────────
+const I18N = {
+  zh: {
+    summary: "新增 {0} · 复用缓存 {1} · 共 {2} 个职位",
+    profile: "检索画像：{0}",
+    search_ph: "搜索职位、公司…",
+    sort_score: "得分降序", sort_date: "最新时间",
+    f_all: "全部", f_today: "今天", f_week: "本周",
+    score_all: "全部分数", score_n: "≥ {0}",
+    new_title: "🆕 本次新增 ({0})", hist_title: "全部职位 ({0})",
+    more: "展开剩余 {0} 个", empty: "暂无职位，请先运行检索",
+    lang_btn: "EN", dark_light: "浅色", dark_dark: "深色",
+    rec_strong_apply: "强烈投递", rec_apply: "建议投递", rec_stretch_apply: "可冲刺",
+    rec_low_priority: "低优先级", rec_skip: "跳过",
+    remote: "远程", unverified: "⚠ 有效性未确认", from_snippet: "基于摘要评分",
+    closed: "疑似已关闭", apply: "投递 →", sources: "来源",
+    d_breakdown: "评分拆解", d_strengths: "优势", d_weak: "待加强",
+    d_musthave: "必备要求", d_good: "加分项", d_skills: "要求技能",
+    dim_title: "方向", dim_seniority: "资历", dim_skills: "技能", dim_location: "地点", dim_must: "必备",
+    na: "暂无",
+  },
+  en: {
+    summary: "{0} new · {1} cached · {2} jobs total",
+    profile: "Search profile: {0}",
+    search_ph: "Search title, company…",
+    sort_score: "Score ↓", sort_date: "Newest",
+    f_all: "All", f_today: "Today", f_week: "This week",
+    score_all: "All scores", score_n: "≥ {0}",
+    new_title: "🆕 New this run ({0})", hist_title: "All jobs ({0})",
+    more: "Show {0} more", empty: "No jobs yet — run a search first",
+    lang_btn: "中", dark_light: "Light", dark_dark: "Dark",
+    rec_strong_apply: "Strong apply", rec_apply: "Apply", rec_stretch_apply: "Stretch",
+    rec_low_priority: "Low priority", rec_skip: "Skip",
+    remote: "Remote", unverified: "⚠ Unverified", from_snippet: "Scored from snippet",
+    closed: "Possibly closed", apply: "Apply →", sources: "Sources",
+    d_breakdown: "Score breakdown", d_strengths: "Strengths", d_weak: "Gaps",
+    d_musthave: "Must-have", d_good: "Nice-to-have", d_skills: "Required skills",
+    dim_title: "Title", dim_seniority: "Seniority", dim_skills: "Skills", dim_location: "Location", dim_must: "Must-have",
+    na: "N/A",
+  },
+};
+function t(key, ...args) {
+  let s = (I18N[LANG] || I18N.en)[key] ?? (I18N.en[key] ?? key);
+  args.forEach((v, i) => { s = s.replace(`{${i}}`, v); });
+  return s;
+}
+
+// ── 状态 ───────────────────────────────────────────────────────────────────────
+let sortMode = "score", scoreMin = null, dateRange = "all", searchText = "", histExpanded = false;
+const HIST_LIMIT = 20;
+
+// ── 工具 ───────────────────────────────────────────────────────────────────────
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function scoreColor(s) {
+  if (s == null) return "bg-gray-400";
+  if (s >= 80) return "bg-green-500"; if (s >= 60) return "bg-yellow-400";
+  if (s >= 40) return "bg-orange-400"; return "bg-red-400";
+}
+function scoreBadge(s) {
+  const d = (s == null) ? "?" : Math.round(s);
+  return `<span class="inline-flex items-center justify-center w-11 h-11 rounded-full text-white text-sm font-bold tabular-nums flex-shrink-0 ${scoreColor(s)}">${d}</span>`;
+}
+function recBadge(rec) {
+  if (!rec) return "";
+  const cls = {
+    strong_apply: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
+    apply: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300",
+    stretch_apply: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300",
+    low_priority: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
+    skip: "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300",
+  }[rec] || "bg-gray-100 text-gray-600";
+  return `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${cls}">${t("rec_" + rec)}</span>`;
+}
+function chip(text, cls) { return `<span class="text-xs px-1.5 py-0.5 rounded ${cls}">${esc(text)}</span>`; }
+function bullets(arr) {
+  if (!arr || !arr.length) return `<p class="text-xs text-gray-400">${t("na")}</p>`;
+  return `<ul class="text-xs space-y-1 list-disc list-inside">${arr.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`;
+}
+
+// ── 筛选 / 排序 ─────────────────────────────────────────────────────────────────
+function withinDate(job) {
+  if (dateRange === "all") return true;
+  const ds = job.date_posted || job.first_seen;
+  if (!ds) return true;
+  const d = new Date(ds); if (isNaN(d)) return true;
+  const days = (Date.now() - d.getTime()) / 86400000;
+  return dateRange === "today" ? days <= 1 : days <= 7;
+}
+function matches(job) {
+  if (searchText) {
+    const q = searchText.toLowerCase();
+    if (!(job.title || "").toLowerCase().includes(q) && !(job.company || "").toLowerCase().includes(q)) return false;
+  }
+  if (scoreMin != null && (job.score ?? -1) < scoreMin) return false;
+  if (!withinDate(job)) return false;
+  return true;
+}
+function sortJobs(list) {
+  return [...list].sort((a, b) =>
+    sortMode === "score" ? (b.score ?? -1) - (a.score ?? -1)
+      : new Date(b.date_posted || b.first_seen || 0) - new Date(a.date_posted || a.first_seen || 0));
+}
+
+// ── 卡片 ───────────────────────────────────────────────────────────────────────
+function sourceChips(job) {
+  return (job.sources || []).map(s => {
+    const k = (s || "").toLowerCase();
+    const cls = k.includes("linkedin") ? "bg-blue-600/10 text-blue-600 dark:text-blue-400"
+      : k.includes("greenhouse") || k.includes("lever") ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+        : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400";
+    return chip(s, cls);
+  }).join(" ");
+}
+function card(job, idx) {
+  const isNew = job.status === "new";
+  const flags = [];
+  if (job.verified === "unverified") flags.push(chip(t("unverified"), "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"));
+  if (job.scored_from === "snippet") flags.push(chip(t("from_snippet"), "bg-gray-100 dark:bg-gray-700 text-gray-500"));
+  if (job.possibly_closed) flags.push(chip(t("closed"), "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"));
+  return `
+  <div class="card-enter bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 hover:shadow-md cursor-pointer" onclick="showDetail(${idx})">
+    <div class="flex items-start gap-3">
+      ${scoreBadge(job.score)}
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-medium text-sm">${esc(job.title)}</span>
+          ${isNew ? `<span class="text-[10px] font-semibold px-1 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded">NEW</span>` : ""}
+          ${recBadge(job.recommendation)}
+        </div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${esc(job.company)}${job.location ? " · " + esc(job.location) : ""}${job.salary ? " · " + esc(job.salary) : ""}</div>
+        <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+          ${(job.matched_keywords || []).slice(0, 6).map(k => chip(k, "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300")).join(" ")}
+          ${sourceChips(job)}
+          ${flags.join(" ")}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── 详情 ───────────────────────────────────────────────────────────────────────
+function showDetail(idx) {
+  const job = ALL[idx]; if (!job) return;
+  const jd = job.jd || {};
+  const dim = (k, v) => `<div class="flex justify-between"><span class="text-gray-500">${t("dim_" + k)}</span><span class="font-mono">${v == null ? "–" : Math.round(v)}</span></div>`;
+  const sourceLinks = (job.source_urls || []).map(su =>
+    `<a href="${esc(su.url)}" target="_blank" class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 hover:underline">${esc(su.source)}</a>`).join(" ");
+  document.getElementById("detail-card").innerHTML = `
+    <div class="flex items-start gap-3 mb-4">
+      ${scoreBadge(job.score)}
+      <div class="flex-1 min-w-0">
+        <h3 class="font-bold text-base">${esc(job.title)}</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400">${esc(job.company)}${job.location ? " · " + esc(job.location) : ""}${job.salary ? " · " + esc(job.salary) : ""}</p>
+        <div class="mt-1">${recBadge(job.recommendation)}</div>
+      </div>
+      <button onclick="closeDetail()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="bg-gray-50 dark:bg-gray-900/40 rounded-xl p-3">
+        <h4 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">${t("d_breakdown")}</h4>
+        <div class="space-y-1 text-xs">
+          ${dim("title", job.title_score)}${dim("seniority", job.seniority_score)}${dim("skills", job.skills_score)}${dim("location", job.location_score)}${dim("must", job.must_have_score)}
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-3">
+          <h4 class="text-xs font-bold text-green-700 dark:text-green-400 mb-1">${t("d_strengths")}</h4>${bullets(job.strengths)}
+        </div>
+        <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-3">
+          <h4 class="text-xs font-bold text-orange-700 dark:text-orange-400 mb-1">${t("d_weak")}</h4>${bullets(job.weaknesses)}
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+      <div><h4 class="text-xs font-bold text-gray-500 mb-1">${t("d_musthave")}</h4>${bullets(jd.must_have || jd.must_have_requirements)}</div>
+      <div><h4 class="text-xs font-bold text-gray-500 mb-1">${t("d_good")}</h4>${bullets(jd.good_to_have)}</div>
+    </div>
+    <div class="mt-4 flex items-center gap-2 flex-wrap">
+      <a href="${esc(job.url)}" target="_blank" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">${t("apply")}</a>
+      <span class="text-xs text-gray-400">${t("sources")}:</span> ${sourceLinks}
+    </div>`;
+  document.getElementById("detail-overlay").classList.remove("hidden");
+}
+function closeDetail() { document.getElementById("detail-overlay").classList.add("hidden"); }
+document.getElementById("detail-overlay").addEventListener("click", e => { if (e.target.id === "detail-overlay") closeDetail(); });
+
+// ── 渲染 ───────────────────────────────────────────────────────────────────────
+let ALL = [];
+function renderList() {
+  ALL = JOBS;  // 详情按全局索引取
+  const filtered = sortJobs(JOBS.filter(matches));
+  const idxOf = j => JOBS.indexOf(j);
+  const news = filtered.filter(j => j.status === "new");
+  const hist = filtered.filter(j => j.status !== "new");
+
+  const newWrap = document.getElementById("new-wrap");
+  if (news.length) {
+    newWrap.classList.remove("hidden");
+    document.getElementById("new-title").textContent = t("new_title", news.length);
+    document.getElementById("new-list").innerHTML = news.map(j => card(j, idxOf(j))).join("");
+  } else newWrap.classList.add("hidden");
+
+  document.getElementById("hist-title").textContent = t("hist_title", hist.length);
+  const shown = histExpanded ? hist : hist.slice(0, HIST_LIMIT);
+  document.getElementById("hist-list").innerHTML = shown.map(j => card(j, idxOf(j))).join("");
+  const moreBtn = document.getElementById("hist-more");
+  if (!histExpanded && hist.length > HIST_LIMIT) {
+    moreBtn.classList.remove("hidden");
+    moreBtn.textContent = t("more", hist.length - HIST_LIMIT);
+  } else moreBtn.classList.add("hidden");
+
+  document.getElementById("empty").classList.toggle("hidden", filtered.length > 0);
+}
+
+// ── 控件初始化 ─────────────────────────────────────────────────────────────────
+function applyStaticLabels() {
+  document.getElementById("summary").textContent = t("summary", META.new_count ?? 0, META.cached_count ?? 0, JOBS.length);
+  document.getElementById("profile-line").textContent = META.profile_summary ? t("profile", META.profile_summary) : "";
+  document.getElementById("search").placeholder = t("search_ph");
+  document.getElementById("lang-btn").textContent = t("lang_btn");
+  document.getElementById("dark-btn").textContent = document.documentElement.classList.contains("dark") ? t("dark_light") : t("dark_dark");
+  const sortSel = document.getElementById("sort");
+  sortSel.innerHTML = `<option value="score">${t("sort_score")}</option><option value="date">${t("sort_date")}</option>`;
+  sortSel.value = sortMode;
+  document.getElementById("date-filter").innerHTML = ["all", "today", "week"].map(r =>
+    `<button data-r="${r}" class="text-xs px-2 py-1.5 rounded-md ${dateRange === r ? "bg-blue-500 text-white" : "bg-gray-100 dark:bg-gray-700"}">${t("f_" + r)}</button>`).join("");
+  const sf = document.getElementById("score-filter");
+  sf.innerHTML = `<option value="">${t("score_all")}</option>` + [50, 70, 85].map(n => `<option value="${n}">${t("score_n", n)}</option>`).join("");
+  sf.value = scoreMin ?? "";
+}
+function bind() {
+  document.getElementById("search").addEventListener("input", e => { searchText = e.target.value.trim(); renderList(); });
+  document.getElementById("sort").addEventListener("change", e => { sortMode = e.target.value; renderList(); });
+  document.getElementById("score-filter").addEventListener("change", e => { scoreMin = e.target.value ? +e.target.value : null; renderList(); });
+  document.getElementById("date-filter").addEventListener("click", e => {
+    const b = e.target.closest("[data-r]"); if (!b) return;
+    dateRange = b.dataset.r; applyStaticLabels(); renderList();
+  });
+  document.getElementById("hist-more").addEventListener("click", () => { histExpanded = true; renderList(); });
+  document.getElementById("lang-btn").addEventListener("click", () => { LANG = LANG === "zh" ? "en" : "zh"; applyStaticLabels(); renderList(); });
+  document.getElementById("dark-btn").addEventListener("click", () => {
+    const on = document.documentElement.classList.toggle("dark");
+    localStorage.setItem("jm_dark", on ? "1" : "0");
+    applyStaticLabels();
+  });
+}
+(function init() {
+  const saved = localStorage.getItem("jm_dark");
+  if (saved !== null) document.documentElement.classList.toggle("dark", saved === "1");
+  if (!["zh", "en"].includes(LANG)) LANG = "en";
+  applyStaticLabels(); bind(); renderList();
+})();
+</script>
+</body>
+</html>
