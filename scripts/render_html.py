@@ -28,7 +28,12 @@ REPORTS_DIR = DATA_DIR / "reports"
 
 
 def flatten(job: dict, mk: str) -> dict:
-    ms = (job.get("match_scores") or {}).get(mk) or {}
+    scores = job.get("match_scores") or {}
+    ms = scores.get(mk)
+    stale = ms is None and bool(scores)
+    if stale:
+        ms = list(scores.values())[-1]  # 回退：用最近一次评分，避免历史职位（不同 cp_hash）显示空白
+    ms = ms or {}
     return {
         "title": job.get("title", ""),
         "company": job.get("company", ""),
@@ -54,6 +59,7 @@ def flatten(job: dict, mk: str) -> dict:
         "skills_score": ms.get("skills_score"),
         "location_score": ms.get("location_score"),
         "must_have_score": ms.get("must_have_score"),
+        "stale_score": stale,
         "jd": job.get("jd_profile") or {},
     }
 
@@ -107,6 +113,23 @@ def main() -> None:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out = REPORTS_DIR / f"report_{ts}.html"
     out.write_text(html, encoding="utf-8")
+
+    # 运行日志（每轮留痕，便于诊断 cp_hash 分裂、无分职位等问题）
+    jobs_all = table.get("jobs", [])
+    run_log = {
+        "ts": datetime.now().isoformat(timespec="seconds"),
+        "cv_hash": args.cv_hash, "cp_hash": args.cp_hash,
+        "report_path": str(out), "job_count": len(jobs),
+        "with_current_mk": sum(1 for j in jobs_all if (j.get("match_scores") or {}).get(mk)),
+        "with_any_score": sum(1 for j in jobs_all if j.get("match_scores")),
+        "no_score": sum(1 for j in jobs_all if not j.get("match_scores")),
+        "new": sum(1 for j in jobs_all if j.get("status") == "new"),
+    }
+    try:
+        with (DATA_DIR / "runs.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps(run_log, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
 
     if not args.no_open:
         open_file(out)

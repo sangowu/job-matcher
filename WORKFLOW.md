@@ -32,6 +32,7 @@
 | `merge_jobs.py update` | `… update --cv-hash H --cp-hash H`（stdin） | 打分结果数组 | `{ok, updated}` |
 | `verify_jobs.py` | `python scripts/verify_jobs.py`（stdin） | URL 数组 | `{results:[{url, alive, reason, final_url}]}` |
 | `fetch_rendered.py` | `python scripts/fetch_rendered.py <url>` | 单 URL | `{ok, text, browser_used}` 或 `{ok:false, error}` |
+| `cp_hash.py` | `python scripts/cp_hash.py`（stdin） | candidate_profile JSON | `{ok, cp_hash}`（规范化后稳定 hash） |
 | `render_html.py` | `… --cv-hash H --cp-hash H [--meta-file F]` | jobs_table + meta | `{ok, report_path, job_count}` |
 
 指令文档（按需读）：`references/cv_schema.md`、`references/scoring_rubric.md`、`references/search_playbook.md`。配置：`config.json`。
@@ -58,7 +59,7 @@
 ### 3. 构建检索条件（你来做，读 `references/search_playbook.md`）
 - 融合 CVProfile + query → `search_plan`(≤5) + `candidate_profile`。
 - **缺目标职位 或 地点完全缺失 → 停下追问用户**。
-- 算 `candidate_profile_hash`（candidate_profile 的稳定 hash，进 match_score 缓存键）。
+- 算 `candidate_profile_hash`：把 candidate_profile JSON 喂给 `python scripts/cp_hash.py`（它规范化后再 hash，**保证同语义同 hash、不每轮分裂**），取返回的 `cp_hash`。后续 `merge_jobs` / `render_html` 的 `--cp-hash` **全部用它**（不要自己另编 hash）。
 
 ### 4. 检索职位（web 搜索 + 脚本，自适应分批）
 - 按 search_playbook 自适应分批：每批执行若干条 query 的 **web 搜索**（有子代理则并行委派、各 1 次搜索；否则你逐条搜），按 search_playbook「搜索职责」解析+三维初筛，得结构化职位数组。

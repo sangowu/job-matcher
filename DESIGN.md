@@ -104,6 +104,9 @@ CV+query →[脚本]extract_cv→ cv_text + cv_hash
 - **url_key**（规范化 URL：去追踪参数+锚点，保留 job-id 参数，主流平台提 `平台:id`）= **缓存命中**键。
 - **dedup_key** = **多来源聚合**键（raw_sources 按 source 去重合并）。
 - merge_jobs 输出 `{to_analyze, to_score_only, cached}`；`to_score_only` 含「同CV换query」（candidate_profile_hash 不同）。
+- **cp_hash 稳定化**（修复 mk 分裂 bug）：`candidate_profile_hash` 由 `scripts/cp_hash.py` 规范化（递归排序键/list、小写 trim）后再算，保证同语义 profile 得同 hash，避免 LLM 输出波动导致 mk 每轮分裂、历史职位评分丢失。编排者构造 candidate_profile 后用此脚本算 cp_hash。
+- **render 回退取分**：render_html 取不到当前 mk 的评分时，回退用该职位最近一次 match_score（标 `stale_score`），全表展示下历史职位不再显示空白。
+- **运行日志**：每次 render 追加一行到 `data/runs.jsonl`（cv/cp_hash + 有分/无分统计），用于诊断与可观测。
 - 过期(>30天)移入 `archive.json`，主表保精简。
 
 ### 容错阶梯（失效验证 & JD 抓取共用）
