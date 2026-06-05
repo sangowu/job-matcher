@@ -1,0 +1,95 @@
+# Job Matcher — Workflow（agent-中立）
+
+> 本文件是 job-matcher 的**单一事实源流程**，不绑定任何特定 agent。
+> 任何具备「运行 Python + 读写文件 + web 搜索」能力的 agent 都能照此执行。
+> 各 agent 的入口文件（如 Claude Code 的 `SKILL.md`）只负责把下面的「能力」映射到该 agent 的具体工具，流程本身在这里。
+
+## 能力前提
+
+| 能力 | 必需性 | 映射到你的运行时 | 缺失时 |
+|------|:---:|------|------|
+| 运行 Python 3 + 读写文件 | **必需** | shell / exec | 无法运行（脚本是骨架） |
+| Web 搜索 | **必需** | 你的 web 搜索工具 | 无法做职位检索（核心残缺） |
+| 并行子代理 | 可选 | 你的 sub-agent / 并行机制 | **降级：你自己主线程串行执行各步** |
+| 网页抓取 | 可选 | 你的 fetch / 浏览工具 | **回退脚本**：`fetch_rendered.py` / `verify_jobs.py`（已内置 requests/playwright） |
+
+> 下文用「**子代理**」「**web 搜索**」「**抓取**」指代上述能力。有就用，没有就按"缺失时"列降级——流程不变，只是慢一些、上下文不那么整洁。
+
+## 编排原则
+
+- 你是**编排者**：调脚本、融合 query、追问用户、（若有）委派子代理。
+- **重上下文工作**（CV 抽取、搜索+解析、打分）尽量交给子代理；大块原始文本（CV 全文、搜索结果、JD 全文）**留在子代理/文件**，你的上下文只保留「路径 + 小 JSON」。
+- 无子代理时你自己串行做这些步骤，但**仍坚持**"大文本写文件、上下文只留摘要"。
+- 脚本输出是纯 ASCII JSON，解析后使用。所有路径相对本 skill 目录。
+
+## 脚本契约（你的确定性工具箱）
+
+| 脚本 | 调用 | 输入 | 输出 |
+|------|------|------|------|
+| `extract_cv.py` | `python scripts/extract_cv.py <file>` | CV 文件路径 | `{ok, source_type, char_count, cv_hash, text_path, cache_hit, cached_profile_path?, warnings}` |
+| `validate_profile.py` | `python scripts/validate_profile.py`（stdin） | LLM 抽取的 CVProfile JSON | `{ok, profile, notes}` |
+| `merge_jobs.py merge` | `… merge --cv-hash H --cp-hash H`（stdin） | 候选职位数组 | `{to_analyze, to_score_only, cached, stats}` |
+| `merge_jobs.py update` | `… update --cv-hash H --cp-hash H`（stdin） | 打分结果数组 | `{ok, updated}` |
+| `verify_jobs.py` | `python scripts/verify_jobs.py`（stdin） | URL 数组 | `{results:[{url, alive, reason, final_url}]}` |
+| `fetch_rendered.py` | `python scripts/fetch_rendered.py <url>` | 单 URL | `{ok, text, browser_used}` 或 `{ok:false, error}` |
+| `render_html.py` | `… --cv-hash H --cp-hash H [--meta-file F]` | jobs_table + meta | `{ok, report_path, job_count}` |
+
+指令文档（按需读）：`references/cv_schema.md`、`references/scoring_rubric.md`、`references/search_playbook.md`。配置：`config.json`。
+
+## 流程
+
+### 0. 准备
+- 读 `config.json` 拿参数。
+- **灵活识别输入**：从用户消息找出 CV（文件路径，或粘贴的大段简历文本）和 query（求职意向）。
+  - 只有 query 没 CV → 追问 CV。
+  - 有 CV 没 query → 可继续，但目标职位/地点缺失时按第 3 步规则追问。
+
+### 1. 解析 CV（脚本）
+- 文件：`python scripts/extract_cv.py <path>`。
+- 粘贴文本：先存成 `data/cv_text.txt`（UTF-8），再 `python scripts/extract_cv.py data/cv_text.txt`。
+- `ok:false` → 告诉用户换格式；有 `warnings` → 先告知质量风险。记下 `cv_hash` / `text_path` / `cache_hit`。
+
+### 2. CV 结构化
+- `cache_hit:true` → 读 `cached_profile_path` 载入 CVProfile，**跳过抽取**。
+- 否则（**有子代理就委派，否则你自己做**）：读 `references/cv_schema.md` + `text_path`，产出 CVProfile JSON → 用 `validate_profile.py` 校验补全 → 写 `data/cv/<cv_hash>.json`。
+  - 委派时只回传简短摘要（roles/seniority/missing），不回贴全文。
+  - 若判定输入不是简历 → 提示用户。
+
+### 3. 构建检索条件（你来做，读 `references/search_playbook.md`）
+- 融合 CVProfile + query → `search_plan`(≤5) + `candidate_profile`。
+- **缺目标职位 或 地点完全缺失 → 停下追问用户**。
+- 算 `candidate_profile_hash`（candidate_profile 的稳定 hash，进 match_score 缓存键）。
+
+### 4. 检索职位（web 搜索 + 脚本，自适应分批）
+- 按 search_playbook 自适应分批：每批执行若干条 query 的 **web 搜索**（有子代理则并行委派、各 1 次搜索；否则你逐条搜），按 search_playbook「搜索职责」解析+三维初筛，得结构化职位数组。
+- 汇总 → `merge_jobs.py merge` → `{to_analyze, to_score_only, cached, stats}`。
+- 按 stats 判断是否追加下一批（阈值/上限/连续空批见 playbook）。
+- 一行进度：`第N批 搜X条→候选Y→新Z/缓存W`。
+
+### 5. 匹配排序（打分 + 脚本，读 `references/scoring_rubric.md`）
+- **粗排**：对 `to_analyze`+`to_score_only` 用 snippet 做 5 维快速估分排序（有子代理则分片并行）。
+- **精排**：取 Top-(top_n+precise_buffer) → 抓 JD 全文（用**抓取**能力或回退脚本）→ 抽 jd_profile + 精确 5 维打分；`to_score_only` 复用已有 jd_profile 只打分。
+- **失效验证**（精排 Top-N）：`verify_jobs.py` 查死链；`possibly_closed` 的走容错阶梯确认；失效则剔除、从次位递补。
+- 写回：`merge_jobs.py update`（喂 `[{dedup_key, jd_profile, match_score, verified, scored_from}]`）。
+
+### 6. 生成报告（脚本）
+- 写 `data/run_meta.json`：`{profile_summary, new_count, cached_count, lang}`（lang = CVProfile.search_language）。
+- `python scripts/render_html.py --cv-hash H --cp-hash H --meta-file data/run_meta.json` → 生成并自动打开。
+- 把 `report_path` 告诉用户。
+
+### 7. 收尾
+- 简述结果（新增/复用/路径），指出风险（未验证/基于摘要评分的职位）。
+
+## 容错阶梯（失效验证 & JD 抓取共用）
+```
+抓取正文（你的 fetch 工具）→ 失败退避重试1次
+  → requests 静态抓（可在子代理内，或脚本）扫关闭关键词
+  → fetch_rendered.py <url>（headless，受 headless_budget 约束，缺浏览器自动跳过）
+  → 全失败：标注「未验证」/「基于摘要评分」，不阻塞
+```
+
+## 护栏
+- 抓取**不绕验证码、不模拟登录、不抓需付费/登录内容、尊重 robots/ToS**。
+- 失败一律**降级不阻塞**；搜 0 结果/全失效时如实告知并建议放宽条件。
+- 大块文本留子代理/文件，上下文只放路径与小 JSON。
+- 不臆造职位或字段；CV 含 PII，数据落 `data/`（已 .gitignore）。

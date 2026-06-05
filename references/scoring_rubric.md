@@ -1,6 +1,6 @@
 # 打分规则（scoring_rubric）
 
-> 打分 subagent 读本文件，对职位做 5 维匹配打分，产出 `MatchScore`。
+> 打分者（编排者本人，或其委派的一个子代理）读本文件，对职位做 5 维匹配打分，产出 `MatchScore`。
 > 双向匹配：CV 满足 JD 要求的程度（打分）+ 职位满足候选人硬约束（过滤）。
 
 ## 两阶段
@@ -67,7 +67,7 @@ seniority 落在 `stretch_levels` 的，倾向 `stretch_apply`。
 ```
 
 ## 批量与并行
-- 一个 subagent 一次评一片职位（如 5-8 个），输出每个的 MatchScore。
-- 多片**并行**（受 `max_parallel_subagents` 约束）。
-- JD 全文留在 subagent 内，只回传结构化 `jd_profile` + `MatchScore`，不回传全文。
+- 一次评一片职位（如 5-8 个），输出每个的 MatchScore。
+- **有子代理则多片并行**（受 `max_parallel_subagents` 约束）；否则串行逐片。
+- JD 全文留在子代理/工作区内，只回传结构化 `jd_profile` + `MatchScore`，不回传全文。
 - JD 抓取失败 → 走容错阶梯；彻底失败用 snippet 粗分并标 `scored_from = "snippet"`。
