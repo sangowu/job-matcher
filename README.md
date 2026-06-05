@@ -1,8 +1,10 @@
 # job-matcher
 
-> 一个 Claude Code skill：输入**简历(CV) + 求职意向**，自动抽取简历字段、用 **WebSearch 实时检索**匹配职位，生成一份**可交互的 HTML 报告**。
+[English](README.en.md) | **中文**
 
-是 [JobRadar](https://github.com/sangowu/JobRadar) 的**轻量版**——纯 Claude Code 原生能力（WebSearch + subagent + Python 脚本），**零外部服务依赖**，借鉴 JobRadar 的 schema、算法与界面风格。
+> 一个 **agent skill（Claude Code 与 Codex 通用）**：输入**简历(CV) + 求职意向**，自动抽取简历字段、用 **web 搜索实时检索**匹配职位，生成一份**可交互的 HTML 报告**。
+
+是 [JobRadar](https://github.com/sangowu/JobRadar) 的**轻量版**——纯 agent 原生能力（web 搜索 + 子代理 + Python 脚本），**零外部服务依赖**，借鉴 JobRadar 的 schema、算法与界面风格。
 
 ---
 
@@ -40,8 +42,8 @@ CV + query
 
 ```
 job-matcher/
-├── SKILL.md              # 触发描述 + 端到端编排总纲
-├── DESIGN.md             # 完整设计决策（封板）
+├── SKILL.md              # 触发描述 + 编排入口
+├── WORKFLOW.md           # agent-中立完整流程
 ├── config.json           # 配置旋钮
 ├── references/           # subagent 按需读取的指令
 │   ├── cv_schema.md          # CV 抽取规则
@@ -93,10 +95,6 @@ job-matcher/
 pip install pdfplumber python-docx requests
 pip install playwright   # 可选
 ```
-
-## 📐 设计
-
-完整设计决策（经多轮讨论封板）见 [`DESIGN.md`](DESIGN.md)，端到端编排见 [`SKILL.md`](SKILL.md)。
 
 ---
 
