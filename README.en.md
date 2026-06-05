@@ -64,7 +64,16 @@ job-matcher/
 
 ## 🚀 Usage
 
-Put this repo at `~/.claude/skills/job-matcher/` (Claude Code) or `~/.agents/skills/job-matcher/` (Codex) — both auto-discover it. Then in chat:
+Clone into your skills dir (use folder name `job-matcher` to match the skill name):
+
+```bash
+# Claude Code
+git clone https://github.com/sangowu/job-matcher-skill ~/.claude/skills/job-matcher
+# Codex
+git clone https://github.com/sangowu/job-matcher-skill ~/.agents/skills/job-matcher
+```
+
+Both auto-discover it. Then in chat:
 
 > Here's my CV `D:\cv.pdf`, find me remote backend roles
 

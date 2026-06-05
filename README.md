@@ -63,7 +63,16 @@ job-matcher/
 
 ## 🚀 使用
 
-把本仓库放在 `~/.claude/skills/job-matcher/`（个人 skill 目录），Claude Code 会自动识别。然后在对话里：
+克隆到个人 skill 目录（目录名用 `job-matcher`，与 skill 名一致）：
+
+```bash
+# Claude Code
+git clone https://github.com/sangowu/job-matcher-skill ~/.claude/skills/job-matcher
+# Codex
+git clone https://github.com/sangowu/job-matcher-skill ~/.agents/skills/job-matcher
+```
+
+agent 会自动识别。然后在对话里：
 
 > 这是我的简历 `D:\cv.pdf`，帮我找远程后端职位
 
