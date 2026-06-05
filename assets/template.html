@@ -12,53 +12,55 @@
   .dark ::-webkit-scrollbar-thumb { background: #475569; }
   .card-enter { animation: fade .25s ease; }
   @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
-  #detail-overlay { backdrop-filter: blur(2px); }
+  .job-card.selected { box-shadow: inset 3px 0 0 0 #3b82f6; }
 </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans transition-colors">
+<body class="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans overflow-hidden transition-colors">
 
-<!-- 顶部 -->
-<header class="sticky top-0 z-20 bg-white/90 dark:bg-gray-800/90 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-sm">
-  <div class="max-w-5xl mx-auto px-4 py-3">
-    <div class="flex items-center gap-3 flex-wrap">
-      <span class="text-lg font-bold text-blue-600 dark:text-blue-400">Job Matcher</span>
-      <span id="summary" class="text-xs text-gray-500 dark:text-gray-400"></span>
-      <div class="ml-auto flex items-center gap-2">
-        <button id="lang-btn" class="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"></button>
-        <button id="dark-btn" class="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"></button>
-      </div>
-    </div>
-    <p id="profile-line" class="text-xs text-gray-400 dark:text-gray-500 mt-1"></p>
-
-    <!-- 控件 -->
-    <div class="flex items-center gap-2 mt-3 flex-wrap">
-      <div class="relative flex-1 min-w-[160px]">
-        <input id="search" type="text"
-          class="w-full pl-3 pr-2 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400" />
-      </div>
-      <select id="sort" class="text-sm px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"></select>
-      <div id="date-filter" class="flex gap-1"></div>
-      <select id="score-filter" class="text-sm px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"></select>
+<!-- 顶部（全宽）-->
+<header class="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm px-4 py-3">
+  <div class="flex items-center gap-3 flex-wrap">
+    <span class="text-lg font-bold text-blue-600 dark:text-blue-400">Job Matcher</span>
+    <span id="summary" class="text-xs text-gray-500 dark:text-gray-400"></span>
+    <div class="ml-auto flex items-center gap-2">
+      <button id="lang-btn" class="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"></button>
+      <button id="dark-btn" class="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"></button>
     </div>
   </div>
+  <p id="profile-line" class="text-xs text-gray-400 dark:text-gray-500 mt-1"></p>
 </header>
 
-<main class="max-w-5xl mx-auto px-4 py-5 space-y-6">
-  <section id="new-wrap" class="hidden">
-    <h2 id="new-title" class="text-sm font-bold text-emerald-600 dark:text-emerald-400 mb-2"></h2>
-    <div id="new-list" class="space-y-2"></div>
-  </section>
-  <section id="hist-wrap">
-    <h2 id="hist-title" class="text-sm font-bold text-gray-500 dark:text-gray-400 mb-2"></h2>
-    <div id="hist-list" class="space-y-2"></div>
-    <button id="hist-more" class="hidden mt-3 w-full py-2 text-xs text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"></button>
-  </section>
-  <p id="empty" class="hidden text-center text-gray-400 py-16 text-sm"></p>
-</main>
+<!-- 两栏：左列表 30% + 右详情 70% -->
+<div id="main" class="flex-1 flex overflow-hidden">
+  <aside id="list-pane" class="w-[30%] min-w-[280px] flex flex-col border-r border-gray-200 dark:border-gray-700">
+    <!-- 列表控件（搜索 / 排序 / 筛选）-->
+    <div class="flex-shrink-0 p-3 border-b border-gray-200 dark:border-gray-700 space-y-2">
+      <input id="search" type="text"
+        class="w-full pl-3 pr-2 py-1.5 text-sm rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+      <div class="flex items-center gap-2">
+        <select id="sort" class="flex-1 min-w-0 text-sm px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"></select>
+        <select id="score-filter" class="flex-shrink-0 text-sm px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700"></select>
+      </div>
+      <div id="date-filter" class="flex gap-1"></div>
+    </div>
+    <!-- 列表滚动区 -->
+    <div class="flex-1 overflow-y-auto p-3 space-y-4">
+    <section id="new-wrap" class="hidden">
+      <h2 id="new-title" class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-2 px-1"></h2>
+      <div id="new-list" class="space-y-2"></div>
+    </section>
+    <section id="hist-wrap">
+      <h2 id="hist-title" class="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 px-1"></h2>
+      <div id="hist-list" class="space-y-2"></div>
+      <button id="hist-more" class="hidden mt-3 w-full py-2 text-xs text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md"></button>
+    </section>
+    <p id="empty" class="hidden text-center text-gray-400 py-16 text-sm"></p>
+    </div>
+  </aside>
 
-<!-- 详情浮层 -->
-<div id="detail-overlay" class="hidden fixed inset-0 z-30 bg-black/40 flex items-start justify-center overflow-y-auto py-8 px-4">
-  <div id="detail-card" class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-6 card-enter"></div>
+  <main id="detail-pane" class="flex-1 overflow-y-auto p-6">
+    <div id="detail-content"></div>
+  </main>
 </div>
 
 <script id="data">
@@ -79,6 +81,7 @@ const I18N = {
     score_all: "全部分数", score_n: "≥ {0}",
     new_title: "🆕 本次新增 ({0})", hist_title: "全部职位 ({0})",
     more: "展开剩余 {0} 个", empty: "暂无职位，请先运行检索",
+    select_hint: "← 选择左侧职位查看详情",
     lang_btn: "EN", dark_light: "浅色", dark_dark: "深色",
     rec_strong_apply: "强烈投递", rec_apply: "建议投递", rec_stretch_apply: "可冲刺",
     rec_low_priority: "低优先级", rec_skip: "跳过",
@@ -98,6 +101,7 @@ const I18N = {
     score_all: "All scores", score_n: "≥ {0}",
     new_title: "🆕 New this run ({0})", hist_title: "All jobs ({0})",
     more: "Show {0} more", empty: "No jobs yet — run a search first",
+    select_hint: "← Select a job to view details",
     lang_btn: "中", dark_light: "Light", dark_dark: "Dark",
     rec_strong_apply: "Strong apply", rec_apply: "Apply", rec_stretch_apply: "Stretch",
     rec_low_priority: "Low priority", rec_skip: "Skip",
@@ -117,6 +121,7 @@ function t(key, ...args) {
 
 // ── 状态 ───────────────────────────────────────────────────────────────────────
 let sortMode = "score", scoreMin = null, dateRange = "all", searchText = "", histExpanded = false;
+let selectedIdx = null;
 const HIST_LIMIT = 20;
 
 // ── 工具 ───────────────────────────────────────────────────────────────────────
@@ -126,9 +131,10 @@ function scoreColor(s) {
   if (s >= 80) return "bg-green-500"; if (s >= 60) return "bg-yellow-400";
   if (s >= 40) return "bg-orange-400"; return "bg-red-400";
 }
-function scoreBadge(s) {
+function scoreBadge(s, big) {
   const d = (s == null) ? "?" : Math.round(s);
-  return `<span class="inline-flex items-center justify-center w-11 h-11 rounded-full text-white text-sm font-bold tabular-nums flex-shrink-0 ${scoreColor(s)}">${d}</span>`;
+  const sz = big ? "w-12 h-12 text-base" : "w-10 h-10 text-sm";
+  return `<span class="inline-flex items-center justify-center ${sz} rounded-full text-white font-bold tabular-nums flex-shrink-0 ${scoreColor(s)}">${d}</span>`;
 }
 function recBadge(rec) {
   if (!rec) return "";
@@ -171,7 +177,7 @@ function sortJobs(list) {
       : new Date(b.date_posted || b.first_seen || 0) - new Date(a.date_posted || a.first_seen || 0));
 }
 
-// ── 卡片 ───────────────────────────────────────────────────────────────────────
+// ── 左栏卡片（精简）──────────────────────────────────────────────────────────────
 function sourceChips(job) {
   return (job.sources || []).map(s => {
     const k = (s || "").toLowerCase();
@@ -183,82 +189,99 @@ function sourceChips(job) {
 }
 function card(job, idx) {
   const isNew = job.status === "new";
-  const flags = [];
-  if (job.verified === "unverified") flags.push(chip(t("unverified"), "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"));
-  if (job.scored_from === "snippet") flags.push(chip(t("from_snippet"), "bg-gray-100 dark:bg-gray-700 text-gray-500"));
-  if (job.possibly_closed) flags.push(chip(t("closed"), "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"));
-  if (job.stale_score && job.score != null) flags.push(chip(t("stale_score"), "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"));
+  const sel = idx === selectedIdx ? "selected ring-1 ring-blue-300 dark:ring-blue-700" : "";
   return `
-  <div class="card-enter bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 hover:shadow-md cursor-pointer" onclick="showDetail(${idx})">
-    <div class="flex items-start gap-3">
+  <div data-idx="${idx}" class="job-card card-enter bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-2.5 hover:shadow-md cursor-pointer ${sel}" onclick="selectJob(${idx})">
+    <div class="flex items-start gap-2.5">
       ${scoreBadge(job.score)}
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-medium text-sm">${esc(job.title)}</span>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="font-medium text-sm truncate">${esc(job.title)}</span>
           ${isNew ? `<span class="text-[10px] font-semibold px-1 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded">NEW</span>` : ""}
-          ${recBadge(job.recommendation)}
         </div>
-        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${esc(job.company)}${job.location ? " · " + esc(job.location) : ""}${job.salary ? " · " + esc(job.salary) : ""}</div>
-        <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-          ${(job.matched_keywords || []).slice(0, 6).map(k => chip(k, "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300")).join(" ")}
-          ${sourceChips(job)}
-          ${flags.join(" ")}
-        </div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">${esc(job.company)}${job.location ? " · " + esc(job.location) : ""}</div>
+        <div class="mt-1">${recBadge(job.recommendation)}</div>
       </div>
     </div>
   </div>`;
 }
 
-// ── 详情 ───────────────────────────────────────────────────────────────────────
-function showDetail(idx) {
-  const job = ALL[idx]; if (!job) return;
+// ── 右栏详情 ────────────────────────────────────────────────────────────────────
+function renderDetail(job) {
+  const pane = document.getElementById("detail-content");
+  if (!job) {
+    pane.innerHTML = `<div class="h-full flex items-center justify-center text-gray-400 text-sm">${t("select_hint")}</div>`;
+    return;
+  }
   const jd = job.jd || {};
   const dim = (k, v) => `<div class="flex justify-between"><span class="text-gray-500">${t("dim_" + k)}</span><span class="font-mono">${v == null ? "–" : Math.round(v)}</span></div>`;
   const sourceLinks = (job.source_urls || []).map(su =>
     `<a href="${esc(su.url)}" target="_blank" class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 hover:underline">${esc(su.source)}</a>`).join(" ");
-  document.getElementById("detail-card").innerHTML = `
-    <div class="flex items-start gap-3 mb-4">
-      ${scoreBadge(job.score)}
-      <div class="flex-1 min-w-0">
-        <h3 class="font-bold text-base">${esc(job.title)}</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400">${esc(job.company)}${job.location ? " · " + esc(job.location) : ""}${job.salary ? " · " + esc(job.salary) : ""}</p>
-        <div class="mt-1">${recBadge(job.recommendation)}</div>
-      </div>
-      <button onclick="closeDetail()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
-    </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div class="bg-gray-50 dark:bg-gray-900/40 rounded-xl p-3">
-        <h4 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">${t("d_breakdown")}</h4>
-        <div class="space-y-1 text-xs">
-          ${dim("title", job.title_score)}${dim("seniority", job.seniority_score)}${dim("skills", job.skills_score)}${dim("location", job.location_score)}${dim("must", job.must_have_score)}
-        </div>
-      </div>
-      <div class="space-y-3">
-        <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-3">
-          <h4 class="text-xs font-bold text-green-700 dark:text-green-400 mb-1">${t("d_strengths")}</h4>${bullets(job.strengths)}
-        </div>
-        <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-3">
-          <h4 class="text-xs font-bold text-orange-700 dark:text-orange-400 mb-1">${t("d_weak")}</h4>${bullets(job.weaknesses)}
-        </div>
-      </div>
-    </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-      <div><h4 class="text-xs font-bold text-gray-500 mb-1">${t("d_musthave")}</h4>${bullets(jd.must_have || jd.must_have_requirements)}</div>
-      <div><h4 class="text-xs font-bold text-gray-500 mb-1">${t("d_good")}</h4>${bullets(jd.good_to_have)}</div>
-    </div>
-    <div class="mt-4 flex items-center gap-2 flex-wrap">
-      <a href="${esc(job.url)}" target="_blank" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">${t("apply")}</a>
-      <span class="text-xs text-gray-400">${t("sources")}:</span> ${sourceLinks}
-    </div>`;
-  document.getElementById("detail-overlay").classList.remove("hidden");
-}
-function closeDetail() { document.getElementById("detail-overlay").classList.add("hidden"); }
-document.getElementById("detail-overlay").addEventListener("click", e => { if (e.target.id === "detail-overlay") closeDetail(); });
+  const flags = [];
+  if (job.verified === "unverified") flags.push(chip(t("unverified"), "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"));
+  if (job.scored_from === "snippet") flags.push(chip(t("from_snippet"), "bg-gray-100 dark:bg-gray-700 text-gray-500"));
+  if (job.possibly_closed) flags.push(chip(t("closed"), "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"));
+  if (job.stale_score && job.score != null) flags.push(chip(t("stale_score"), "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"));
 
-// ── 渲染 ───────────────────────────────────────────────────────────────────────
-let ALL = [];
+  pane.innerHTML = `
+    <div class="max-w-3xl card-enter">
+      <div class="flex items-start gap-3 mb-4">
+        ${scoreBadge(job.score, true)}
+        <div class="flex-1 min-w-0">
+          <h3 class="font-bold text-lg leading-tight">${esc(job.title)}</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">${esc(job.company)}${job.location ? " · " + esc(job.location) : ""}${job.salary ? " · " + esc(job.salary) : ""}</p>
+          <div class="flex items-center gap-1.5 mt-2 flex-wrap">${recBadge(job.recommendation)}${flags.join(" ")}</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 mb-4 flex-wrap">
+        ${(job.matched_keywords || []).map(k => chip(k, "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300")).join(" ")}
+        ${sourceChips(job)}
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-gray-50 dark:bg-gray-900/40 rounded-xl p-4">
+          <h4 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">${t("d_breakdown")}</h4>
+          <div class="space-y-1.5 text-xs">
+            ${dim("title", job.title_score)}${dim("seniority", job.seniority_score)}${dim("skills", job.skills_score)}${dim("location", job.location_score)}${dim("must", job.must_have_score)}
+          </div>
+        </div>
+        <div class="space-y-3">
+          <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+            <h4 class="text-xs font-bold text-green-700 dark:text-green-400 mb-1.5">${t("d_strengths")}</h4>${bullets(job.strengths)}
+          </div>
+          <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4">
+            <h4 class="text-xs font-bold text-orange-700 dark:text-orange-400 mb-1.5">${t("d_weak")}</h4>${bullets(job.weaknesses)}
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+        <div><h4 class="text-xs font-bold text-gray-500 mb-1.5">${t("d_musthave")}</h4>${bullets(jd.must_have || jd.must_have_requirements)}</div>
+        <div><h4 class="text-xs font-bold text-gray-500 mb-1.5">${t("d_good")}</h4>${bullets(jd.good_to_have)}</div>
+      </div>
+
+      <div class="mt-5 pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2 flex-wrap">
+        <span class="text-xs text-gray-400">${t("sources")}:</span> ${sourceLinks}
+        <a href="${esc(job.url)}" target="_blank" class="ml-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">${t("apply")}</a>
+      </div>
+    </div>`;
+}
+
+function selectJob(idx) {
+  selectedIdx = idx;
+  document.querySelectorAll(".job-card").forEach(el => {
+    const on = +el.dataset.idx === idx;
+    el.classList.toggle("selected", on);
+    el.classList.toggle("ring-1", on);
+    el.classList.toggle("ring-blue-300", on);
+    el.classList.toggle("dark:ring-blue-700", on);
+  });
+  renderDetail(idx == null ? null : JOBS[idx]);
+}
+
+// ── 渲染列表 ────────────────────────────────────────────────────────────────────
 function renderList() {
-  ALL = JOBS;  // 详情按全局索引取
   const filtered = sortJobs(JOBS.filter(matches));
   const idxOf = j => JOBS.indexOf(j);
   const news = filtered.filter(j => j.status === "new");
@@ -281,9 +304,17 @@ function renderList() {
   } else moreBtn.classList.add("hidden");
 
   document.getElementById("empty").classList.toggle("hidden", filtered.length > 0);
+
+  // 选中：保持当前选中（若仍可见），否则选第一个
+  const visible = filtered.map(idxOf);
+  if (selectedIdx == null || !visible.includes(selectedIdx)) {
+    selectJob(visible.length ? visible[0] : null);
+  } else {
+    selectJob(selectedIdx);
+  }
 }
 
-// ── 控件初始化 ─────────────────────────────────────────────────────────────────
+// ── 控件 ───────────────────────────────────────────────────────────────────────
 function applyStaticLabels() {
   document.getElementById("summary").textContent = t("summary", META.new_count ?? 0, META.cached_count ?? 0, JOBS.length);
   document.getElementById("profile-line").textContent = META.profile_summary ? t("profile", META.profile_summary) : "";

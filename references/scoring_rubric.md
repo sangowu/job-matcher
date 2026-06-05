@@ -66,6 +66,11 @@ seniority 落在 `stretch_levels` 的，倾向 `stretch_apply`。
 }
 ```
 
+## 输出语言（重要）
+`strengths` / `weaknesses` / `explanation` / `missing_must_haves` 等**所有自然语言文本，必须用 CV 的语言（`CVProfile.search_language`）输出**，与报告界面语言一致。
+- CV 是中文 → 这些分析文本用中文；CV 是英文 → 用英文。
+- 不要用英文分析中文 CV（反之亦然）。`matched_keywords` 保持技能原文（如 Python、Kubernetes）。
+
 ## 批量与并行
 - 一次评一片职位（如 5-8 个），输出每个的 MatchScore。
 - **有子代理则多片并行**（受 `max_parallel_subagents` 约束）；否则串行逐片。

@@ -75,7 +75,8 @@
 
 ### 6. 生成报告（脚本）
 - 写 `data/run_meta.json`：`{profile_summary, new_count, cached_count, lang}`（lang = CVProfile.search_language）。
-- `python scripts/render_html.py --cv-hash H --cp-hash H --meta-file data/run_meta.json` → 生成并自动打开。
+- `python scripts/render_html.py --cv-hash H --cp-hash H --meta-file data/run_meta.json` → 生成并**自动打开报告**。
+- ⚠ 每轮**只在这里 render 一次**；返回的 `opened: true` 表示报告**已自动打开**，**不要再手动打开报告**（os.startfile / 浏览器 / 重复 render 都不要），否则会打开多次。
 - 把 `report_path` 告诉用户。
 
 ### 7. 收尾

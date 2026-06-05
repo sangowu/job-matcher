@@ -134,7 +134,8 @@ def main() -> None:
     if not args.no_open:
         open_file(out)
 
-    print(json.dumps({"ok": True, "report_path": str(out), "job_count": len(jobs)}))
+    print(json.dumps({"ok": True, "report_path": str(out), "job_count": len(jobs),
+                      "opened": not args.no_open}))
 
 
 if __name__ == "__main__":
