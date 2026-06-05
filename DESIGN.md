@@ -87,10 +87,10 @@ CV+query →[脚本]extract_cv→ cv_text + cv_hash
 ### 模块6 HTML 渲染（render_html.py + template.html）
 - 占位符替换注入（`__JOBS_JSON__`/`__META_JSON__`/`__LANG__`，零依赖）→ `data/reports/report_{ts}.html` → 自动打开（跨平台）。
 - **借鉴 JobRadar 视觉**：Tailwind CDN、深色+localStorage、scoreBadge、recommendation 五档色标。
-- 布局：**单页卡片 + 点击展开**。卡片含评分/色标/技能chips/来源chips/优势·待加强/「⚠未验证」「基于摘要评分」标注/投递链接。
+- 布局：**两栏 30:70**——左栏（搜索/排序/筛选固定在顶部 + 职位列表滚动，精简卡片：评分/标题/公司/推荐等级）+ 右栏（选中职位详情常驻：评分 5 维拆解/优势·待加强/技能·来源 chips/JD must-have·nice/「⚠未验证」「基于摘要评分」标注/投递按钮**右对齐**）。默认选中第一个，点击左侧切换。
 - 交互（纯 JS）：score/date 排序、date(全部/今天/本周)+score(≥3/5/7/9) 筛选、搜索框。
 - **全表展示** + 🆕新增徽章 + 顶部「新增X·复用缓存Y」；历史区默认 Top-20 + 展开。
-- **报告语言 = CV 语言**（中/英 i18n，其他 fallback 英文）。
+- **报告语言 = CV 语言**（中/英 i18n，其他 fallback 英文）；**打分产出的分析文本**（strengths/weaknesses/explanation 等）也用 CV 语言（见 scoring_rubric「输出语言」），避免中英不一致。
 
 ## 5. 横切设计
 
