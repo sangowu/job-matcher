@@ -85,7 +85,7 @@ CV+query →[脚本]extract_cv→ cv_text + cv_hash
 - 主 agent 统一写表（防并发写）。
 
 ### 模块6 HTML 渲染（render_html.py + template.html）
-- Jinja2 注入 → `data/reports/report_{ts}.html` → 自动打开（跨平台）。
+- 占位符替换注入（`__JOBS_JSON__`/`__META_JSON__`/`__LANG__`，零依赖）→ `data/reports/report_{ts}.html` → 自动打开（跨平台）。
 - **借鉴 JobRadar 视觉**：Tailwind CDN、深色+localStorage、scoreBadge、recommendation 五档色标。
 - 布局：**单页卡片 + 点击展开**。卡片含评分/色标/技能chips/来源chips/优势·待加强/「⚠未验证」「基于摘要评分」标注/投递链接。
 - 交互（纯 JS）：score/date 排序、date(全部/今天/本周)+score(≥3/5/7/9) 筛选、搜索框。
@@ -141,5 +141,5 @@ WebFetch 抓正文 → 失败退避重试1次
 - `templates/index.html`：scoreColor/scoreBadge/recommendationBadge/sortedJobs/jobMatchesFilters/深色/i18n。
 
 ## 8. 依赖
-- 必需：`pdfplumber` `python-docx` `jinja2` `requests`（环境已装，Python 3.13.5）。
+- 必需：`pdfplumber` `python-docx` `requests`（环境已装，Python 3.13.5）。render_html 用占位符替换，无需模板引擎。
 - 可选：`playwright`（headless 兜底，复用系统浏览器；已装）。
